@@ -1,15 +1,23 @@
-use std::f32::consts::PI;
 use pixels::{Pixels, SurfaceTexture};
+use rayon::prelude::*;
+use std::f32::consts::PI;
 use winit::dpi::PhysicalSize;
 use winit::event::{Event, VirtualKeyCode};
-use winit::event_loop::{EventLoop};
+use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
 
 // THIS CLOSURE CONTAINS THE DIFFERENTIAL EQ. USED!!!
 // SUBSTITUTE THIS WITH ANYTHING YOU LIKE!!!
 const DX_DY: fn(f32, f32) -> f32 = |x, y| {
-    x / y
+    // x / y
+    // x + y
+    // 2. * x - y
+    // 2. - (x * y)
+    // x + y
+    // x * x / y
+    // x % y
+    ((0.5 * x).sin() + y.cos()) * 2.
 };
 
 const WIDTH: u32 = 1000;
@@ -17,7 +25,7 @@ const HEIGHT: u32 = 1000;
 const W2: f32 = WIDTH as f32 / 2.;
 const H2: f32 = HEIGHT as f32 / 2.;
 
-struct World{
+struct World {
     mouse_pos: (f32, f32),
 }
 
@@ -26,7 +34,7 @@ fn sigmoid(x: f32) -> f32 {
     (x * 0.25).tanh()
 }
 
-fn main()  {
+fn main() {
     let mut world = World::new();
 
     let event_loop = EventLoop::new();
@@ -87,23 +95,26 @@ impl World {
     fn update(&mut self) {}
 
     fn draw(&self, frame: &mut [u8]) {
-        for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let x = (i % WIDTH as usize) as i32;
-            let y = (i / WIDTH as usize) as i32;
-            let (rx, ry) = pixel_to_grid_space(x, y);
+        frame
+            .par_chunks_exact_mut(4)
+            .enumerate()
+            .for_each(|(i, pixel)| {
+                let x = (i % WIDTH as usize) as i32;
+                let y = (i / WIDTH as usize) as i32;
+                let (rx, ry) = pixel_to_grid_space(x, y);
 
-            let m = DX_DY(rx, ry);
+                let m = DX_DY(rx, ry);
 
-            let g = sigmoid(m);
-            let mut rgba = [0, 0, 0, 0xff];
-            if g > 0.0 {
-                rgba[0] = (g * 255.0) as u8
-            } else {
-                rgba[2] = (-g * 255.0) as u8
-            }
+                let g = sigmoid(m);
+                let mut rgba = [0, 0, 0, 0xff];
+                if g > 0.0 {
+                    rgba[0] = (g * 255.0) as u8
+                } else {
+                    rgba[2] = (-g * 255.0) as u8
+                }
 
-            pixel.copy_from_slice(&rgba);
-        }
+                pixel.copy_from_slice(&rgba);
+            });
 
         for i in 0..=18 {
             for j in 0..=18 {
@@ -150,12 +161,12 @@ fn draw_slope_line(frame: &mut [u8], x: f32, y: f32, len: f32, draw_arrow: bool)
         let r2 = 7.5;
         let dx2 = (r2 * a2.cos()) as i32;
         let dy2 = (r2 * a2.sin()) as i32;
-        draw_line(frame, px+dx, py+dy, px+dx+dx2, py+dy+dy2);
+        draw_line(frame, px + dx, py + dy, px + dx + dx2, py + dy + dy2);
 
         let a3 = a - offset;
         let dx3 = (r2 * a3.cos()) as i32;
         let dy3 = (r2 * a3.sin()) as i32;
-        draw_line(frame, px+dx, py+dy, px+dx+dx3, py+dy+dy3);
+        draw_line(frame, px + dx, py + dy, px + dx + dx3, py + dy + dy3);
     }
 }
 
@@ -180,15 +191,21 @@ fn draw_line(frame: &mut [u8], x1: i32, y1: i32, x2: i32, y2: i32) {
             pixel.copy_from_slice(&[255, 255, 255, 255]);
         }
 
-        if x1 == x2 && y1 == y2 { break }
+        if x1 == x2 && y1 == y2 {
+            break;
+        }
         let e2 = error * 2.;
         if e2 >= dy {
-            if x1 == x2 { break }
+            if x1 == x2 {
+                break;
+            }
             error += dy;
             x1 += sx;
         }
         if e2 <= dx {
-            if y1 == y2 { break }
+            if y1 == y2 {
+                break;
+            }
             error += dx;
             y1 += sy;
         }
