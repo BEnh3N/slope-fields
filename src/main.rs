@@ -1,5 +1,5 @@
-use std::f32::consts::PI;
-// use std::f32::consts::E;
+use std::f64::consts::PI;
+use std::io::stdin;
 use pixels::{Pixels, SurfaceTexture};
 use winit::dpi::PhysicalSize;
 use winit::event::{Event, VirtualKeyCode};
@@ -9,27 +9,32 @@ use winit_input_helper::WinitInputHelper;
 
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
-const W2: f32 = WIDTH as f32 / 2.;
-const H2: f32 = HEIGHT as f32 / 2.;
+const W2: f64 = WIDTH as f64 / 2.;
+const H2: f64 = HEIGHT as f64 / 2.;
 
-struct World {
-    mouse_pos: (f32, f32)
+struct World<F>
+where
+    F: Fn(f64, f64) -> f64
+{
+    mouse_pos: (f32, f32),
+    func: F
 }
 
-fn dx_dy(x: f32, y: f32) -> f32 {
-    // 2. * x - y
-    // x * y
-    // x + y
-    -x / y
-    // (3. * x.powi(2) + 1.) / (2. * y)
-}
-
-fn sigmoid(x: f32) -> f32 {
+fn sigmoid(x: f64) -> f64 {
     // 1. / (1. + E.powf(-x))
     (x * 0.25).tanh()
 }
 
 fn main()  {
+    println!("Enter differential: ");
+    let mut input_equation = String::new();
+    stdin().read_line(&mut input_equation).unwrap();
+
+    let expr = input_equation.trim().parse::<meval::Expr>().expect("Error parsing differential equation!");
+    let func = expr.bind2("x", "y").unwrap();
+
+    let mut world = World::new(func);
+
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
     let window = {
@@ -47,7 +52,6 @@ fn main()  {
         let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
         Pixels::new(WIDTH, HEIGHT, surface_texture).unwrap()
     };
-    let mut world = World::new();
 
     event_loop.run(move |event, _, control_flow| {
         // Draw the current frame
@@ -68,19 +72,9 @@ fn main()  {
                 return;
             }
 
-            match input.mouse() {
-                Some(pos) => world.mouse_pos = pos,
-                None => {}
+            if let Some(pos) = input.mouse() {
+                world.mouse_pos = pos;
             }
-
-            // Resize the window
-            // if let Some(size) = input.window_resized() {
-            //     if let Err(err) = pixels.resize_surface(size.width, size.height) {
-            //         log_error("pixels.resize_surface", err);
-            //         *control_flow = ControlFlow::Exit;
-            //         return;
-            //     }
-            // }
 
             // Update internal state and request a redraw
             world.update();
@@ -89,11 +83,19 @@ fn main()  {
     });
 }
 
-impl World {
-    fn new() -> Self {
+impl<F> World<F>
+where
+    F: Fn(f64, f64) -> f64
+{
+    fn new(func: F) -> Self {
         Self {
-            mouse_pos: (0., 0.)
+            mouse_pos: (0., 0.),
+            func
         }
+    }
+
+    fn dx_dy(&self, x: f64, y: f64) -> f64 {
+        (self.func)(x, y)
     }
 
     fn update(&mut self) {}
@@ -104,7 +106,7 @@ impl World {
             let y = (i / WIDTH as usize) as i32;
             let (rx, ry) = pixel_to_grid_space(x, y);
 
-            let m = dx_dy(rx, ry);
+            let m = self.dx_dy(rx, ry);
 
             let g = sigmoid(m);
             let mut rgba = [0, 0, 0, 0xff];
@@ -119,34 +121,37 @@ impl World {
 
         for i in 0..=18 {
             for j in 0..=18 {
-                let rx = (i - 9) as f32;
-                let ry = (j - 9) as f32;
-                draw_slope_line(frame, rx, ry, 40., true);
+                let rx = (i - 9) as f64;
+                let ry = (j - 9) as f64;
+                draw_slope_line(frame, rx, ry, 40., true, &self);
             }
         }
 
         let x = self.mouse_pos.0 as i32;
         let y = self.mouse_pos.1 as i32;
         let (rx, ry) = pixel_to_grid_space(x, y);
-        draw_slope_line(frame, rx, ry, 100., true);
+        draw_slope_line(frame, rx, ry, 100., true, &self);
     }
 }
 
-fn pixel_to_grid_space(x: i32, y: i32) -> (f32, f32) {
-    let new_x = ((x as f32 - W2) / W2) * 10.;
-    let new_y = (-(y as f32 - H2) / H2) * 10.;
+fn pixel_to_grid_space(x: i32, y: i32) -> (f64, f64) {
+    let new_x = ((x as f64 - W2) / W2) * 10.;
+    let new_y = (-(y as f64 - H2) / H2) * 10.;
     (new_x, new_y)
 }
 
-fn grid_to_pixel_space(x: f32, y: f32) -> (i32, i32) {
+fn grid_to_pixel_space(x: f64, y: f64) -> (i32, i32) {
     let new_x = (((x / 10.) * W2) + W2) as i32;
     let new_y = ((-(y / 10.) * H2) + H2) as i32;
     (new_x, new_y)
 }
 
-fn draw_slope_line(frame: &mut [u8], x: f32, y: f32, len: f32, draw_arrow: bool) {
+fn draw_slope_line<F>(frame: &mut [u8], x: f64, y: f64, len: f64, draw_arrow: bool, world: &World<F>)
+where
+    F: Fn(f64, f64) -> f64
+{
     let (px, py) = grid_to_pixel_space(x, y);
-    let m = dx_dy(x, y);
+    let m = world.dx_dy(x, y);
     let a = m.atan();
 
     let r = len / 2.;
