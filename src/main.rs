@@ -29,9 +29,50 @@ struct World {
     mouse_pos: (f32, f32),
 }
 
-fn sigmoid(x: f32) -> f32 {
-    // 1. / (1. + E.powf(-x))
-    (x * 0.25).tanh()
+impl World {
+    fn new() -> Self {
+        Self {
+            mouse_pos: (0., 0.),
+        }
+    }
+
+    fn update(&mut self) {}
+
+    fn draw(&self, frame: &mut [u8]) {
+        frame
+            .par_chunks_exact_mut(4)
+            .enumerate()
+            .for_each(|(i, pixel)| {
+                let x = (i % WIDTH as usize) as i32;
+                let y = (i / WIDTH as usize) as i32;
+                let (rx, ry) = pixel_to_grid_space(x, y);
+
+                let m = DX_DY(rx, ry);
+
+                let g = sigmoid(m);
+                let mut rgba = [0, 0, 0, 0xff];
+                if g > 0.0 {
+                    rgba[0] = (g * 255.0) as u8
+                } else {
+                    rgba[2] = (-g * 255.0) as u8
+                }
+
+                pixel.copy_from_slice(&rgba);
+            });
+
+        for i in 0..=18 {
+            for j in 0..=18 {
+                let rx = (i - 9) as f32;
+                let ry = (j - 9) as f32;
+                draw_slope_line(frame, rx, ry, 40., true);
+            }
+        }
+
+        let x = self.mouse_pos.0 as i32;
+        let y = self.mouse_pos.1 as i32;
+        let (rx, ry) = pixel_to_grid_space(x, y);
+        draw_slope_line(frame, rx, ry, 100., true);
+    }
 }
 
 fn main() {
@@ -83,52 +124,6 @@ fn main() {
             window.request_redraw();
         }
     });
-}
-
-impl World {
-    fn new() -> Self {
-        Self {
-            mouse_pos: (0., 0.),
-        }
-    }
-
-    fn update(&mut self) {}
-
-    fn draw(&self, frame: &mut [u8]) {
-        frame
-            .par_chunks_exact_mut(4)
-            .enumerate()
-            .for_each(|(i, pixel)| {
-                let x = (i % WIDTH as usize) as i32;
-                let y = (i / WIDTH as usize) as i32;
-                let (rx, ry) = pixel_to_grid_space(x, y);
-
-                let m = DX_DY(rx, ry);
-
-                let g = sigmoid(m);
-                let mut rgba = [0, 0, 0, 0xff];
-                if g > 0.0 {
-                    rgba[0] = (g * 255.0) as u8
-                } else {
-                    rgba[2] = (-g * 255.0) as u8
-                }
-
-                pixel.copy_from_slice(&rgba);
-            });
-
-        for i in 0..=18 {
-            for j in 0..=18 {
-                let rx = (i - 9) as f32;
-                let ry = (j - 9) as f32;
-                draw_slope_line(frame, rx, ry, 40., true);
-            }
-        }
-
-        let x = self.mouse_pos.0 as i32;
-        let y = self.mouse_pos.1 as i32;
-        let (rx, ry) = pixel_to_grid_space(x, y);
-        draw_slope_line(frame, rx, ry, 100., true);
-    }
 }
 
 fn pixel_to_grid_space(x: i32, y: i32) -> (f32, f32) {
@@ -210,4 +205,9 @@ fn draw_line(frame: &mut [u8], x1: i32, y1: i32, x2: i32, y2: i32) {
             y1 += sy;
         }
     }
+}
+
+fn sigmoid(x: f32) -> f32 {
+    // 1. / (1. + E.powf(-x))
+    (x * 0.25).tanh()
 }
