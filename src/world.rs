@@ -1,6 +1,7 @@
 use crate::{draw_slope_line, pixel_to_grid_space, sigmoid, DY_DX, WIDTH};
 use rayon::prelude::*;
 
+// Holds the internal state of the program
 pub struct World {
     pub mouse_pos: (f32, f32),
 }
@@ -36,6 +37,7 @@ impl World {
                 pixel.copy_from_slice(&rgba);
             });
 
+        // Go from x = [-9, 9] and y = [-9, 9] and draw slope lines
         for i in 0..=18 {
             for j in 0..=18 {
                 let rx = (i - 9) as f32;
@@ -44,6 +46,7 @@ impl World {
             }
         }
 
+        // Draw the slope line at the current mouse position
         let x = self.mouse_pos.0 as i32;
         let y = self.mouse_pos.1 as i32;
         let (rx, ry) = pixel_to_grid_space(x, y);

@@ -17,21 +17,26 @@ const DY_DX: fn(f32, f32) -> f32 = |x, y| {
 
 pub const WIDTH: u32 = 1000;
 pub const HEIGHT: u32 = 1000;
+
+// Half of width & height for convenience
 const W2: f32 = WIDTH as f32 / 2.;
 const H2: f32 = HEIGHT as f32 / 2.;
 
+// Convert from pixel coordinates to coordinates on the grid
 pub fn pixel_to_grid_space(x: i32, y: i32) -> (f32, f32) {
     let new_x = ((x as f32 - W2) / W2) * 10.;
     let new_y = (-(y as f32 - H2) / H2) * 10.;
     (new_x, new_y)
 }
 
+// Convert from coordinates on the grid to pixel coordinate
 pub fn grid_to_pixel_space(x: f32, y: f32) -> (i32, i32) {
     let new_x = (((x / 10.) * W2) + W2) as i32;
     let new_y = ((-(y / 10.) * H2) + H2) as i32;
     (new_x, new_y)
 }
 
+// Draw a slope line given a grid point, length, and whether to draw an arrow
 pub fn draw_slope_line(frame: &mut [u8], x: f32, y: f32, len: f32, draw_arrow: bool) {
     let (px, py) = grid_to_pixel_space(x, y);
     let m = DY_DX(x, y);
@@ -59,6 +64,7 @@ pub fn draw_slope_line(frame: &mut [u8], x: f32, y: f32, len: f32, draw_arrow: b
     }
 }
 
+// Simple line drawing algorithm
 pub fn draw_line(frame: &mut [u8], x1: i32, y1: i32, x2: i32, y2: i32) {
     let mut x1 = x1 as f32;
     let mut y1 = y1 as f32;
@@ -101,6 +107,8 @@ pub fn draw_line(frame: &mut [u8], x1: i32, y1: i32, x2: i32, y2: i32) {
     }
 }
 
+// Sigmoid function for flattening values as they approach infinity
+// (as they so often seem to do)
 pub fn sigmoid(x: f32) -> f32 {
     // 1. / (1. + E.powf(-x))
     (x * 0.25).tanh()

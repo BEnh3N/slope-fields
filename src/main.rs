@@ -8,6 +8,7 @@ use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
 
 fn main() {
+    // Create new world instance which holds internal state of the program
     let mut world = World::new();
 
     let event_loop = EventLoop::new();
