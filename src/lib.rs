@@ -9,7 +9,6 @@ const DY_DX: fn(f32, f32) -> f32 = |x, y| {
     // x + y
     // 2. * x - y
     // 2. - (x * y)
-    // x + y
     // x * x / y
     // x % y
     ((0.5 * x).sin() + y.cos()) * 2.
