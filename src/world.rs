@@ -44,9 +44,12 @@ impl World {
             self.draw_field();
         }
 
-        for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            pixel.copy_from_slice(&self.field[i]);
-        }
+        frame
+            .par_chunks_exact_mut(4)
+            .enumerate()
+            .for_each(|(i, pixel)| {
+                pixel.copy_from_slice(&self.field[i]);
+            });
 
         // Go from x = [-9, 9] and y = [-9, 9] and draw slope lines
         for i in 0..=18 {
